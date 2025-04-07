@@ -77,7 +77,7 @@ def codes_view():
 
 @app.get("/list-pga-options")
 def list_pga_options():
-    df = pd.read_excel(os.path.join(DATA_DIR, "PGA_Codes.xlsx"), dtype=str).fillna("")
+    df = pd.read_excel(os.path.join(DATA_DIR, "PGA_codes.xlsx"), dtype=str).fillna("")
     return {
         "agencyCode": sorted(df["Agency Code"].dropna().unique()),
         "code": sorted(df["Code"].dropna().unique()),
@@ -86,7 +86,7 @@ def list_pga_options():
 
 @app.get("/codes-data")
 def codes_data(agency: str = "", code: str = "", program: str = ""):
-    df = pd.read_excel(os.path.join(DATA_DIR, "PGA_Codes.xlsx"), dtype=str).fillna("")
+    df = pd.read_excel(os.path.join(DATA_DIR, "PGA_codes.xlsx"), dtype=str).fillna("")
     if agency: df = df[df["Agency Code"] == agency]
     if code: df = df[df["Code"] == code]
     if program: df = df[df["Program Code"] == program]
