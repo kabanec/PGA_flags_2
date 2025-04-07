@@ -19,6 +19,7 @@ load_dotenv()
 # Base paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
+DEST_DATA_DIR = "/data"
 BARCODE_API_KEY = os.getenv("BARCODE_API_KEY")
 logger = logging.getLogger("uvicorn.error")
 
@@ -49,13 +50,16 @@ def is_valid_url(url: str) -> bool:
     return parsed.scheme in ("http", "https") and bool(parsed.netloc)
 
 def ensure_persistent_files():
-    files = ["PGA_Codes.xlsx", "PGA_HTS.xlsx", "HS_Chapters_lookup.xlsx", "headers.xlsx", "hs_codes.xlsx"]
+    files = os.listdir(DATA_DIR)
     for f in files:
-        src = os.path.join(BASE_DIR, "data", f)
-        dst = os.path.join("/data", f)
+        src = os.path.join(DATA_DIR, f)
+        dst = os.path.join(DEST_DATA_DIR, f)
+
         if not os.path.exists(dst):
             shutil.copy2(src, dst)
-
+            print(f"Copied {f} to disk at /data")
+        else:
+            print(f"{f} already exists on disk, skipping")
 ensure_persistent_files()
 
 @app.get("/list-persistent")
