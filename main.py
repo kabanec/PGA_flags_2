@@ -160,15 +160,15 @@ def lookup(req: LookupRequest, username: str = Depends(auth)):
     #hs_rules = hs_rules.dropna(axis=1, how="all").to_dict("records")
 
     # Collect all valid URLs from specific columns
-    url_cols = ["Website Link", "CFR Link", "Links to Example Documents", "Link to Disclaimer Form Template"]
-    urls = set()
-    for rec in pga_hts:
-        for col in url_cols:
-            raw = rec.get(col)
-            if raw and pd.notna(raw):
-                for url in str(raw).split():
-                    if is_valid_url(url):
-                        urls.add(url)
+    #url_cols = ["Website Link", "CFR Link", "Links to Example Documents", "Link to Disclaimer Form Template"]
+    #urls = set()
+    #for rec in pga_hts:
+    #    for col in url_cols:
+    #        raw = rec.get(col)
+    #        if raw and pd.notna(raw):
+    #            for url in str(raw).split():
+    #                if is_valid_url(url):
+    #                    urls.add(url)
 
     # ChatGPT prompt per URL
     requirements = []
