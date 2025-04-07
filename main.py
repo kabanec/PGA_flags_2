@@ -183,18 +183,24 @@ def lookup(req: LookupRequest, username: str = Depends(auth)):
         if items:
             pga_sections[col.strip()] = items
 
-    # HS Rules from all sheets
-    #sheets = pd.read_excel(f"{DATA_DIR}/hs_codes.xlsx", sheet_name=None)
-    #df_rules = pd.concat(sheets.values())
-    #df_rules["HsCode"] = df_rules["HsCode"].astype(str)
-    #df_rules["Chapter"] = df_rules["HsCode"].str[:2].str.zfill(2)
-    #df_rules["Header"] = df_rules["HsCode"].str[:4]
-    #hs_rules = df_rules[df_rules["HsCode"].str.startswith(target)]
-    #if hs_rules.empty:
-    #    hs_rules = df_rules[df_rules["HsCode"].str.startswith(target[:4])]
-    #if hs_rules.empty:
-    #    hs_rules = df_rules[df_rules["Chapter"] == chapter_key]
-    #hs_rules = hs_rules.dropna(axis=1, how="all").to_dict("records")
+    # === HS RULES from tab only ===
+    xl = pd.ExcelFile(os.path.join(DATA_DIR, "hs_codes.xlsx"))
+    chapter_tab_names = [f"HTS Chapter {int(chapter_key)}", f"Chapter {int(chapter_key)}"]
+    sheet_name = next((name for name in chapter_tab_names if name in xl.sheet_names), None)
+
+    if sheet_name:
+        df_rules = xl.parse(sheet_name)
+        df_rules["HsCode"] = df_rules["HsCode"].astype(str)
+        df_rules["Chapter"] = df_rules["HsCode"].str[:2].str.zfill(2)
+        df_rules["Header"] = df_rules["HsCode"].str[:4]
+        hs_rules = df_rules[df_rules["HsCode"].str.startswith(target)]
+        if hs_rules.empty:
+            hs_rules = df_rules[df_rules["HsCode"].str.startswith(target[:4])]
+        if hs_rules.empty:
+            hs_rules = df_rules[df_rules["Chapter"] == chapter_key]
+        hs_rules = hs_rules.dropna(axis=1, how="all").to_dict("records")
+    else:
+        hs_rules = []
 
     # Collect all valid URLs from specific columns
     #url_cols = ["Website Link", "CFR Link", "Links to Example Documents", "Link to Disclaimer Form Template"]
@@ -230,7 +236,7 @@ def lookup(req: LookupRequest, username: str = Depends(auth)):
         "hs_chapters": chapters,
         "pga_hts": pga_hts,
         "pga_sections": pga_sections,
-        "hs_rules": "", #hs_rules,
+        "hs_rules": hs_rules,
         "pga_requirements": requirements,
         "disclaimer": "Sources: I’ve used the ACE Agency Tariff Code Reference Guide (March 5, 2024), ACE Appendix PGA (December 12, 2024), Federal Register notices (e.g., CPSC expansion, September 9, 2024)"
     }
