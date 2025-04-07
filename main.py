@@ -172,21 +172,22 @@ def lookup(req: LookupRequest, username: str = Depends(auth)):
 
     # ChatGPT prompt per URL
     requirements = []
-    for url in sorted(urls):
-        try:
-            text = requests.get(url, timeout=10).text
-            prompt = f"Product Name: {req.name or 'N/A'}\nProduct Description: {req.description or 'N/A'}\n\nFrom this page, list required documents and conditions.\n\n{text}"
-            chat = openai.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "You are a customs compliance expert."},
-                    {"role": "user", "content": prompt}
-                ]
-            )
-            msg = chat.choices[0].message.content
-            requirements.append({"url": url, "parsed_requirements": msg})
-        except Exception as e:
-            requirements.append({"url": url, "error": str(e)})
+
+    #for url in sorted(urls):
+    #    try:
+    #        text = requests.get(url, timeout=10).text
+    #        prompt = f"Product Name: {req.name or 'N/A'}\nProduct Description: {req.description or 'N/A'}\n\nFrom this page, list required documents and conditions.\n\n{text}"
+    #        chat = openai.chat.completions.create(
+    #            model="gpt-4o-mini",
+    #            messages=[
+    #                {"role": "system", "content": "You are a customs compliance expert."},
+    #                {"role": "user", "content": prompt}
+    #            ]
+    #        )
+    #        msg = chat.choices[0].message.content
+    #        requirements.append({"url": url, "parsed_requirements": msg})
+    #    except Exception as e:
+    #        requirements.append({"url": url, "error": str(e)})
 
     return {
         "hs_chapters": chapters,
