@@ -193,7 +193,7 @@ def lookup(req: LookupRequest, username: str = Depends(auth)):
         "hs_chapters": chapters,
         "pga_hts": pga_hts,
         "pga_sections": pga_sections,
-        "hs_rules": hs_rules,
+        "hs_rules": "", #hs_rules,
         "pga_requirements": requirements,
         "disclaimer": "Sources: I’ve used the ACE Agency Tariff Code Reference Guide (March 5, 2024), ACE Appendix PGA (December 12, 2024), Federal Register notices (e.g., CPSC expansion, September 9, 2024)"
     }
