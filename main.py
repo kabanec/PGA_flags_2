@@ -10,6 +10,9 @@ from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
+from fastapi import Query
+
 from urllib.parse import urlparse
 from pydantic import BaseModel
 
@@ -23,6 +26,7 @@ DATA_DIR = "/data"
 DEST_DATA_DIR = "/data"
 BARCODE_API_KEY = os.getenv("BARCODE_API_KEY")
 logger = logging.getLogger("uvicorn.error")
+df_codes = pd.read_excel(os.path.join(DATA_DIR, "PGA_codes.xlsx"), dtype=str).fillna("")
 
 # Auth
 VALID_USER = "admin"
@@ -63,6 +67,34 @@ def ensure_persistent_files():
             print(f"{f} already exists on disk, skipping")
 
 ensure_persistent_files()
+
+@app.get("/list-pga-options", summary="Get filter options for PGA Codes Viewer")
+def list_pga_options():
+    return {
+        "agencyCode": sorted(df_codes["Agency Code"].dropna().unique().tolist()),
+        "code": sorted(df_codes["Code"].dropna().unique().tolist()),
+        "programCode": sorted(df_codes["Program Code"].dropna().unique().tolist())
+    }
+
+@app.get("/codes-data", summary="Return filtered PGA Codes based on selected filters")
+def get_filtered_codes(
+    agency: str = Query(None, description="Filter by Agency Code"),
+    code: str = Query(None, description="Filter by Code"),
+    program: str = Query(None, description="Filter by Program Code")
+):
+    filtered = df_codes.copy()
+    if agency:
+        filtered = filtered[filtered["Agency Code"] == agency]
+    if code:
+        filtered = filtered[filtered["Code"] == code]
+    if program:
+        filtered = filtered[filtered["Program Code"] == program]
+    return JSONResponse(content=filtered.to_dict(orient="records"))
+
+@app.get("/codes", response_class=HTMLResponse)
+def view_codes():
+    with open(os.path.join(BASE_DIR, "templates", "codes.html")) as f:
+        return f.read()
 
 @app.get("/list-persistent")
 def list_persistent():

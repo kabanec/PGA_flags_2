@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PGA Codes Viewer</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 2rem; }
+    h1 { text-align: center; }
+    .container { max-width: 1200px; margin: 0 auto; background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .filters { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    select { padding: .5rem; border-radius: 4px; border: 1px solid #ccc; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem; }
+    th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+    th { background: #f8f8f8; }
+    .row-count { margin-top: 1rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>PGA Codes Viewer</h1>
+  <div class="container">
+    <div class="filters">
+      <label>
+        Agency Code:
+        <select id="agencyCode"></select>
+      </label>
+      <label>
+        Code:
+        <select id="code"></select>
+      </label>
+      <label>
+        Program Code:
+        <select id="programCode"></select>
+      </label>
+    </div>
+    <div class="row-count" id="rowCount"></div>
+    <table id="resultTable"></table>
+  </div>
+  <script>
+    async function loadFilters() {
+      const res = await fetch('/list-pga-options');
+      const options = await res.json();
+
+      for (const field of ['agencyCode', 'code', 'programCode']) {
+        const select = document.getElementById(field);
+        select.innerHTML = '<option value="">All</option>' + options[field].map(v => `<option>${v}</option>`).join('');
+        select.onchange = loadTable;
+      }
+    }
+
+    async function loadTable() {
+      const agency = document.getElementById('agencyCode').value;
+      const code = document.getElementById('code').value;
+      const program = document.getElementById('programCode').value;
+
+      const query = new URLSearchParams({
+        ...(agency && { agency }),
+        ...(code && { code }),
+        ...(program && { program })
+      }).toString();
+
+      const res = await fetch(`/codes-data?${query}`);
+      const data = await res.json();
+
+      const table = document.getElementById('resultTable');
+      table.innerHTML = '';
+
+      if (!data.length) {
+        table.innerHTML = '<tr><td colspan="100%">No matching records found.</td></tr>';
+        document.getElementById('rowCount').textContent = '0 records found';
+        return;
+      }
+
+      const headers = Object.keys(data[0]);
+      table.innerHTML += `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
+      data.forEach(row => {
+        table.innerHTML += `<tr>${headers.map(h => `<td>${row[h] || ''}</td>`).join('')}</tr>`;
+      });
+
+      document.getElementById('rowCount').textContent = `${data.length} records found`;
+    }
+
+    loadFilters();
+    loadTable();
+  </script>
+</body>
+</html>
