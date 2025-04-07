@@ -118,7 +118,7 @@ def lookup(req: LookupRequest, username: str = Depends(auth)):
     df_hts = pd.read_excel(f"{DATA_DIR}/PGA_HTS.xlsx", dtype=str).rename(columns={"HTS Number - Full": "HsCode"})
     df_hts.columns = df_hts.columns.str.strip()
 
-    df_pga = pd.read_excel(f"{DATA_DIR}/PGA_Codes.xlsx", dtype=str).replace("", pd.NA)
+    df_pga = pd.read_excel(f"{DATA_DIR}/PGA_codes.xlsx", dtype=str).replace("", pd.NA)
     df_pga.columns = df_pga.columns.str.strip()
 
     key_cols_hts = ["PGA Name Code", "PGA Flag Code", "PGA Program Code"]
