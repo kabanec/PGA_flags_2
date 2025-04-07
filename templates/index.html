@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PGA & HS Lookup Tool</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 2rem; }
+    h1 { text-align: center; }
+    form, .card { max-width: 600px; margin: 1rem auto; background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    label { display: block; margin-top: 1rem; font-weight: 600; }
+    input { width: 100%; padding: .75rem; border: 1px solid #ccc; border-radius: 4px; }
+    .form-row { display: flex; gap: .5rem; align-items: center; margin-top: 1rem; }
+    .form-row input { flex: 0 0 30ch; }
+    .form-row button { flex: 1; }
+    button { padding: .75rem; border: none; border-radius: 4px; background: #007BFF; color: #fff; width: 100%; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    img#productImage { max-width: 100%; margin-top: 1rem; display: none; }
+    .spinner { display: none; margin: 2rem auto; width: 48px; height: 48px; border: 5px solid #ccc; border-top-color: #007BFF; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .record { border-top: 1px solid #eee; padding: 1rem 0; }
+    .field { display: flex; padding: .25rem 0; }
+    .field-key { flex: 0 0 40%; font-weight: 600; }
+    .field-value { flex: 1; word-break: break-word; }
+    .no-data { text-align: center; padding: 2rem; color: #777; }
+  </style>
+</head>
+<body>
+
+<h1>PGA & HS Lookup Tool</h1>
+
+<form id="lookupForm" onsubmit="return false;">
+  <label>HS Code<input id="hs_code" name="hs_code" required placeholder="e.g. 3403115000"></label>
+
+  <label for="upc">UPC Code</label>
+  <div class="form-row">
+    <input id="upc" name="upc" placeholder="e.g. 3614272049529">
+    <button id="fetchUpc" type="button">Fetch Info</button>
+  </div>
+
+  <label for="name">Product Name</label>
+  <input id="name" name="name">
+
+  <label for="brand">Product Brand</label>
+  <input id="brand" name="brand">
+
+  <label for="description">Product Description</label>
+  <input id="description" name="description">
+
+  <img id="productImage" alt="Product Image">
+
+  <label>Country of Export (ISO)<input id="country_export" name="country_export" maxlength="2" placeholder="e.g. US"></label>
+  <label>Country of Manufacture (ISO)<input id="country_manufacture" name="country_manufacture" maxlength="2" placeholder="e.g. CN"></label>
+
+  <button id="lookupBtn" type="button">Lookup</button>
+</form>
+
+<div id="spinner" class="spinner"></div>
+<div id="results"></div>
+
+<script>
+function linkify(text) {
+  return text.replace(/(https?:\/\/[^\s]+)/g, url => `<a href="${url}" target="_blank">${url}</a>`);
+}
+
+async function renderSection(title, records) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `<h2>${title}</h2>`;
+  if (!records.length) {
+    card.innerHTML += `<div class="no-data">No ${title.toLowerCase()} found.</div>`;
+    return card;
+  }
+  records.forEach(r => {
+    const rec = document.createElement('div');
+    rec.className = 'record';
+    Object.entries(r).forEach(([k, v]) => {
+      rec.innerHTML += `<div class="field"><div class="field-key">${k}</div><div class="field-value">${linkify(v?.toString() || '')}</div></div>`;
+    });
+    card.appendChild(rec);
+  });
+  return card;
+}
+
+document.getElementById('fetchUpc').onclick = async () => {
+  const upc = document.getElementById('upc').value.trim();
+  if (!upc) return alert('Enter UPC code');
+  const btn = document.getElementById('fetchUpc');
+  btn.disabled = true; btn.textContent = 'Loading…';
+  try {
+    const res = await fetch('/lookup-upc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ upc })
+    });
+    const json = await res.json();
+    if (json.error) alert(json.error);
+    else {
+      document.getElementById('name').value = json.name || '';
+      document.getElementById('brand').value = json.brand || '';
+      document.getElementById('description').value = json.description || '';
+      const img = document.getElementById('productImage');
+      if (json.image) { img.src = json.image; img.style.display = 'block'; } else img.style.display = 'none';
+    }
+  } catch (e) { alert('UPC lookup failed'); }
+  finally { btn.disabled = false; btn.textContent = 'Fetch Info'; }
+};
+
+document.getElementById('lookupBtn').onclick = async () => {
+  const results = document.getElementById('results');
+  const spinner = document.getElementById('spinner');
+  results.innerHTML = ''; spinner.style.display = 'block';
+  try {
+    const data = Object.fromEntries(new FormData(document.getElementById('lookupForm')));
+    const res = await fetch('/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    results.appendChild(await renderSection('HS Chapters Lookup', json.hs_chapters));
+    results.appendChild(await renderSection('PGA HTS Lookup', json.pga_hts));
+    results.appendChild(await renderSection('PGA Key Sections', Object.entries(json.pga_sections).map(([k, v]) => ({ [k]: v.join("\n") }))));
+    results.appendChild(await renderSection('HS Restrictions', json.hs_rules));
+    results.appendChild(await renderSection('PGA Requirements', json.pga_requirements));
+  } finally {
+    spinner.style.display = 'none';
+  }
+};
+</script>
+</body>
+</html>
