@@ -4,6 +4,7 @@ import pandas as pd
 import requests
 import logging
 import openai
+import shutil
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -11,6 +12,17 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from urllib.parse import urlparse
 from pydantic import BaseModel
+
+
+def ensure_persistent_files():
+    files = ["PGA_Codes.xlsx", "PGA_HTS.xlsx", "HS_Chapters_lookup.xlsx", "headers.xlsx", "hs_codes.xlsx"]
+    for f in files:
+        src = os.path.join(BASE_DIR, "data", f)
+        dst = os.path.join("/data", f)
+        if not os.path.exists(dst):
+            shutil.copy2(src, dst)
+
+ensure_persistent_files()
 
 # Load environment variables
 load_dotenv()
@@ -47,6 +59,9 @@ def is_valid_url(url: str) -> bool:
     parsed = urlparse(url.strip())
     return parsed.scheme in ("http", "https") and bool(parsed.netloc)
 
+@app.get("/list-persistent")
+def list_persistent():
+    return os.listdir("/data")
 
 @app.get("/", response_class=HTMLResponse)
 def home():
