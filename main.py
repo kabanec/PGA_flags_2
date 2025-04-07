@@ -91,8 +91,8 @@ def get_filtered_codes(
         filtered = filtered[filtered["Program Code"] == program]
     return JSONResponse(content=filtered.to_dict(orient="records"))
 
-@app.get("/codes", response_class=HTMLResponse)
-def view_codes():
+@app.get("/codes.html", response_class=HTMLResponse)
+def view_codes_html():
     with open(os.path.join(BASE_DIR, "templates", "codes.html")) as f:
         return f.read()
 
