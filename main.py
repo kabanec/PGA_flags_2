@@ -163,23 +163,23 @@ def lookup(req: LookupRequest, username: str = Depends(auth)):
 
     # === HS Rules - filtered during read using chunks ===
     hs_rules = []
-    try:
-        sheets = pd.read_excel(f"{DATA_DIR}/hs_codes.xlsx", sheet_name=None)
-        for sheet in sheets.values():
-            df = sheet if isinstance(sheet, pd.DataFrame) else pd.DataFrame(sheet)
-            df["HsCode"] = df["HsCode"].astype(str)
-            df["Chapter"] = df["HsCode"].str[:2].str.zfill(2)
-            if target in df["HsCode"].values:
-                hs_rules = df[df["HsCode"] == target].dropna(axis=1, how="all").to_dict("records")
-                break
-            elif target[:4] in df["HsCode"].values:
-                hs_rules = df[df["HsCode"].str.startswith(target[:4])].dropna(axis=1, how="all").to_dict("records")
-                break
-        if not hs_rules:
-            hs_rules = df[df["Chapter"] == chapter_key].dropna(axis=1, how="all").to_dict("records")
-    except Exception as e:
-        logger.error(f"HS Rule filtering failed: {e}")
-        hs_rules = []
+    #try:
+    #    sheets = pd.read_excel(f"{DATA_DIR}/hs_codes.xlsx", sheet_name=None)
+    #    for sheet in sheets.values():
+    #        df = sheet if isinstance(sheet, pd.DataFrame) else pd.DataFrame(sheet)
+    #        df["HsCode"] = df["HsCode"].astype(str)
+    #        df["Chapter"] = df["HsCode"].str[:2].str.zfill(2)
+    #        if target in df["HsCode"].values:
+    #            hs_rules = df[df["HsCode"] == target].dropna(axis=1, how="all").to_dict("records")
+    #            break
+    #        elif target[:4] in df["HsCode"].values:
+    #            hs_rules = df[df["HsCode"].str.startswith(target[:4])].dropna(axis=1, how="all").to_dict("records")
+    #            break
+    #    if not hs_rules:
+    #        hs_rules = df[df["Chapter"] == chapter_key].dropna(axis=1, how="all").to_dict("records")
+    #except Exception as e:
+    #    logger.error(f"HS Rule filtering failed: {e}")
+    #    hs_rules = []
 
     # ChatGPT prompt per URL
     requirements = []
