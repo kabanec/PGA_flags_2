@@ -7,10 +7,10 @@ import openai
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from urllib.parse import urlparse
 from pydantic import BaseModel
-
 
 # Load environment variables
 load_dotenv()
@@ -33,6 +33,7 @@ def auth(credentials: HTTPBasicCredentials = Depends(security)):
 
 # App init
 app = FastAPI(title="PGA Lookup", version="1.0.0", docs_url="/docs")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 class LookupRequest(BaseModel):
     hs_code: str
@@ -46,10 +47,19 @@ def is_valid_url(url: str) -> bool:
     parsed = urlparse(url.strip())
     return parsed.scheme in ("http", "https") and bool(parsed.netloc)
 
+
 @app.get("/", response_class=HTMLResponse)
 def home():
     with open(os.path.join(BASE_DIR, "templates/index.html")) as f:
         return f.read()
+
+@app.get("/index.html", response_class=HTMLResponse)
+def index():
+    return home()
+
+@app.get("/favicon.ico")
+def favicon():
+    return FileResponse("static/favicon.ico")
 
 @app.get("/list-data")
 def list_data():
@@ -85,36 +95,20 @@ def lookup(req: LookupRequest, username: str = Depends(auth)):
     chapters = df_chapters[df_chapters["Chapter"] == chapter_key].dropna(axis=1, how="all").to_dict("records")
 
     # PGA HTS + Codes
-    # PGA HTS + Codes
     df_hts = pd.read_excel(f"{DATA_DIR}/PGA_HTS.xlsx", dtype=str).rename(columns={"HTS Number - Full": "HsCode"})
     df_hts.columns = df_hts.columns.str.strip()
 
     df_pga = pd.read_excel(f"{DATA_DIR}/PGA_Codes.xlsx", dtype=str).replace("", pd.NA)
     df_pga.columns = df_pga.columns.str.strip()
 
-    # Define key columns
     key_cols_hts = ["PGA Name Code", "PGA Flag Code", "PGA Program Code"]
     key_cols_pga = ["Agency Code", "Code", "Program Code"]
 
-    # Normalize key column values
     for col in key_cols_hts:
         df_hts[col] = df_hts[col].astype(str).str.strip()
-
     for col in key_cols_pga:
         df_pga[col] = df_pga[col].astype(str).str.strip()
 
-    # Debug: check sample keys
-    #print("HTS columns:", df_hts.columns.tolist())
-    #print("PGA columns:", df_pga.columns.tolist())
-
-    #print("HTS key samples:", df_hts[key_cols_hts].drop_duplicates().head())
-    #print("PGA key samples:", df_pga[key_cols_pga].drop_duplicates().head())
-
-    # Inner join test for diagnostics
-    #debug_merge = df_hts.merge(df_pga, how="inner", left_on=key_cols_hts, right_on=key_cols_pga)
-    #print("INNER join matched rows:", len(debug_merge))
-
-    # Final left merge for lookup
     pga_merged = df_hts.merge(df_pga, how="left", left_on=key_cols_hts, right_on=key_cols_pga)
     pga_hts = pga_merged[pga_merged["HsCode"] == target].dropna(axis=1, how="all").to_dict("records")
 
@@ -179,5 +173,6 @@ def lookup(req: LookupRequest, username: str = Depends(auth)):
         "pga_hts": pga_hts,
         "pga_sections": pga_sections,
         "hs_rules": hs_rules,
-        "pga_requirements": requirements
+        "pga_requirements": requirements,
+        "disclaimer": "Sources: I’ve used the ACE Agency Tariff Code Reference Guide (March 5, 2024), ACE Appendix PGA (December 12, 2024), Federal Register notices (e.g., CPSC expansion, September 9, 2024)"
     }
