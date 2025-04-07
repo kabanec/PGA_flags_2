@@ -77,6 +77,9 @@ def serve_codes_page():
         raise HTTPException(status_code=404, detail="codes.html not found")
     with open(codes_path) as f:
         return f.read()
+@app.get("/codes.html", response_class=HTMLResponse)
+def serve_codes_html_page():
+    return serve_codes_page()
 
 @app.get("/list-pga-options")
 def list_pga_options():
@@ -87,14 +90,30 @@ def list_pga_options():
         "programCode": sorted(df["Program Code"].dropna().unique()),
     }
 
-@app.get("/codes-data")
-def codes_data(agency: str = "", code: str = "", program: str = ""):
-    df = pd.read_excel(os.path.join(DATA_DIR, "PGA_codes.xlsx"), dtype=str).fillna("")
-    if agency: df = df[df["Agency Code"] == agency]
-    if code: df = df[df["Code"] == code]
-    if program: df = df[df["Program Code"] == program]
-    return df.to_dict("records")
+from fastapi import Query
 
+@app.get("/codes-data")
+def codes_data(
+    agency: str = Query(default=None),
+    code: str = Query(default=None),
+    program: str = Query(default=None)
+):
+    df = pd.read_excel(os.path.join(DATA_DIR, "PGA_codes.xlsx"), dtype=str)
+    df.columns = df.columns.str.strip()
+
+    # Strip spaces from all relevant columns
+    for col in ["Agency Code", "Code", "Program Code"]:
+        df[col] = df[col].astype(str).str.strip()
+
+    # Apply filters if provided
+    if agency:
+        df = df[df["Agency Code"].str.strip().str.lower() == agency.strip().lower()]
+    if code:
+        df = df[df["Code"].str.strip().str.lower() == code.strip().lower()]
+    if program:
+        df = df[df["Program Code"].str.strip().str.lower() == program.strip().lower()]
+
+    return df.to_dict(orient="records")
 
 @app.get("/list-persistent")
 def list_persistent():
