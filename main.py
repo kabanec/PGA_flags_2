@@ -129,21 +129,22 @@ def lookup(req: LookupRequest, username: str = Depends(auth)):
     for col in key_cols_pga:
         df_pga[col] = df_pga[col].astype(str).str.strip()
 
-    pga_merged = df_hts.merge(df_pga, how="left", left_on=key_cols_hts, right_on=key_cols_pga)
-    pga_hts_columns = [
-        "PGA Name Code",
-        "PGA Flag Code",
-        "PGA Flag",
-        "PGA Program Code",
-        "HsCode",
-        "HTS Long Description",
-        "Effective Begin Date",
-        "Effective End Date",
-        "HTS Update Date",
-        "Change Pending Status Code",
-        "Change Pending Status"
-    ]
+    # Merge only for lookup purposes — don't include all columns in the final output
+    pga_merged = df_hts.merge(
+        df_pga,
+        how="left",
+        left_on=key_cols_hts,
+        right_on=key_cols_pga,
+        suffixes=("", "_pga")  # distinguish if needed
+    )
 
+    # 1️⃣ Extract data only from PGA_HTS file (raw HTS match)
+    pga_hts_columns = [
+        "PGA Name Code", "PGA Flag Code", "PGA Flag", "PGA Program Code",
+        "HsCode", "HTS Long Description", "Effective Begin Date",
+        "Effective End Date", "HTS Update Date",
+        "Change Pending Status Code", "Change Pending Status"
+    ]
     pga_hts = (
         pga_merged[pga_merged["HsCode"] == target]
         [pga_hts_columns]
@@ -151,19 +152,36 @@ def lookup(req: LookupRequest, username: str = Depends(auth)):
         .to_dict("records")
     )
 
-    # PGA Columns to Extract
-    pga_sections = {}
-    columns = [
-        "R= Required\n M = May be required", "Tariff Flag Code Definition",
-        "PGA Compliance Message (see final in shared google drive) ", "Summary of Requirements",
-        "Conditions to Disclaim", "List of Documents Required",
-        "Links to Example Documents", "Applicable HTS Codes", "Guidance",
-        "Link to Disclaimer Form Template", "CFR Link", "Website Link"
+    # 2️⃣ Extract supplemental details from the PGA_Codes file only
+    pga_sections_columns = [
+        "R= Required\n M = May be required",
+        "Tariff Flag Code Definition",
+        "PGA Compliance Message (see final in shared google drive) ",
+        "Summary of Requirements",
+        "Conditions to Disclaim",
+        "List of Documents Required",
+        "Links to Example Documents",
+        "Applicable HTS Codes",
+        "Guidance",
+        "Link to Disclaimer Form Template",
+        "CFR Link",
+        "Website Link"
     ]
-    for col in columns:
-        items = [str(r[col]).strip() for r in pga_hts if col in r and pd.notna(r[col])]
+
+    # Filter matching rows from the *original* df_pga using keys
+    matched_pga_info = df_pga.merge(
+        df_hts[df_hts["HsCode"] == target][key_cols_hts],
+        how="inner",
+        left_on=key_cols_pga,
+        right_on=key_cols_hts
+    )
+
+    pga_sections = {}
+    for col in pga_sections_columns:
+        items = matched_pga_info[col].dropna().astype(
+            str).str.strip().unique().tolist() if col in matched_pga_info else []
         if items:
-            pga_sections[col.strip()] = list(set(items))
+            pga_sections[col.strip()] = items
 
     # HS Rules from all sheets
     #sheets = pd.read_excel(f"{DATA_DIR}/hs_codes.xlsx", sheet_name=None)
