@@ -133,7 +133,7 @@ def lookup(req: LookupRequest, username: str = Depends(auth)):
         }
 
     # === PGA Codes Filtered on Join Keys ===
-    df_pga = pd.read_excel(f"{DATA_DIR}/PGA_сodes.xlsx", dtype=str)
+    df_pga = pd.read_excel(f"{DATA_DIR}/PGA_codes.xlsx", dtype=str).replace("", pd.NA)
     df_pga.columns = df_pga.columns.str.strip()
 
     # Inner join manually using filtering
