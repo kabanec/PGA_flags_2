@@ -108,78 +108,67 @@ def lookup(req: LookupRequest, username: str = Depends(auth)):
     target = req.hs_code
     chapter_key = target[:2].zfill(2)
 
-    # === HS Chapters ===
-    df_chapters = pd.read_excel(f"{DATA_DIR}/HS_Chapters_lookup.xlsx", dtype=str, usecols=["Chapter", "Description"])
-    df_chapters["Chapter"] = df_chapters["Chapter"].str.zfill(2)
-    chapters = df_chapters[df_chapters["Chapter"] == chapter_key].to_dict("records")
+    # HS Chapters
+    df_chapters = pd.read_excel(f"{DATA_DIR}/HS_Chapters_lookup.xlsx")
+    df_chapters["Chapter"] = df_chapters["Chapter"].astype(str).str.zfill(2)
+    df_chapters = df_chapters.ffill().bfill()
+    chapters = df_chapters[df_chapters["Chapter"] == chapter_key].dropna(axis=1, how="all").to_dict("records")
 
-    # === PGA HTS Filtered by HS Code ===
-    filtered_hts = pd.read_excel(
-        f"{DATA_DIR}/PGA_HTS.xlsx",
-        dtype=str,
-        usecols=["HTS Number - Full", "PGA Name Code", "PGA Flag Code", "PGA Program Code"],
-        engine="openpyxl"
-    )
-    filtered_hts.columns = filtered_hts.columns.str.strip()
-    filtered_hts = filtered_hts[filtered_hts["HTS Number - Full"] == target]
-    if filtered_hts.empty:
-        return {
-            "hs_chapters": chapters,
-            "pga_hts": [],
-            "pga_sections": {},
-            "hs_rules": [],
-            "pga_requirements": [],
-            "disclaimer": "No PGA data found for given HS Code"
-        }
+    # PGA HTS + Codes
+    df_hts = pd.read_excel(f"{DATA_DIR}/PGA_HTS.xlsx", dtype=str).rename(columns={"HTS Number - Full": "HsCode"})
+    df_hts.columns = df_hts.columns.str.strip()
 
-    # === PGA Codes Filtered on Join Keys ===
     df_pga = pd.read_excel(f"{DATA_DIR}/PGA_codes.xlsx", dtype=str).replace("", pd.NA)
     df_pga.columns = df_pga.columns.str.strip()
 
-    # Inner join manually using filtering
-    merge_keys = ["PGA Name Code", "PGA Flag Code", "PGA Program Code"]
-    merged = pd.merge(
-        filtered_hts,
-        df_pga,
-        how="left",
-        left_on=["PGA Name Code", "PGA Flag Code", "PGA Program Code"],
-        right_on=["Agency Code", "Code", "Program Code"]
-    )
-    pga_hts = merged.dropna(axis=1, how="all").to_dict("records")
+    key_cols_hts = ["PGA Name Code", "PGA Flag Code", "PGA Program Code"]
+    key_cols_pga = ["Agency Code", "Code", "Program Code"]
 
-    # === Extract selected columns to display ===
+    for col in key_cols_hts:
+        df_hts[col] = df_hts[col].astype(str).str.strip()
+    for col in key_cols_pga:
+        df_pga[col] = df_pga[col].astype(str).str.strip()
+
+    pga_merged = df_hts.merge(df_pga, how="left", left_on=key_cols_hts, right_on=key_cols_pga)
+    pga_hts = pga_merged[pga_merged["HsCode"] == target].dropna(axis=1, how="all").to_dict("records")
+
+    # PGA Columns to Extract
     pga_sections = {}
-    section_cols = [
+    columns = [
         "R= Required\n M = May be required", "Tariff Flag Code Definition",
         "PGA Compliance Message (see final in shared google drive) ", "Summary of Requirements",
-        "Conditions to Disclaim", "List of Documents Required", "Links to Example Documents",
-        "Applicable HTS Codes", "Guidance", "Link to Disclaimer Form Template",
-        "CFR Link", "Website Link"
+        "Conditions to Disclaim", "List of Documents Required",
+        "Links to Example Documents", "Applicable HTS Codes", "Guidance",
+        "Link to Disclaimer Form Template", "CFR Link", "Website Link"
     ]
-    for col in section_cols:
-        vals = [r[col] for r in pga_hts if col in r and pd.notna(r[col])]
-        if vals:
-            pga_sections[col.strip()] = list(set(map(str.strip, vals)))
+    for col in columns:
+        items = [str(r[col]).strip() for r in pga_hts if col in r and pd.notna(r[col])]
+        if items:
+            pga_sections[col.strip()] = list(set(items))
 
-    # === HS Rules - filtered during read using chunks ===
-    hs_rules = []
-    #try:
-    #    sheets = pd.read_excel(f"{DATA_DIR}/hs_codes.xlsx", sheet_name=None)
-    #    for sheet in sheets.values():
-    #        df = sheet if isinstance(sheet, pd.DataFrame) else pd.DataFrame(sheet)
-    #        df["HsCode"] = df["HsCode"].astype(str)
-    #        df["Chapter"] = df["HsCode"].str[:2].str.zfill(2)
-    #        if target in df["HsCode"].values:
-    #            hs_rules = df[df["HsCode"] == target].dropna(axis=1, how="all").to_dict("records")
-    #            break
-    #        elif target[:4] in df["HsCode"].values:
-    #            hs_rules = df[df["HsCode"].str.startswith(target[:4])].dropna(axis=1, how="all").to_dict("records")
-    #            break
-    #    if not hs_rules:
-    #        hs_rules = df[df["Chapter"] == chapter_key].dropna(axis=1, how="all").to_dict("records")
-    #except Exception as e:
-    #    logger.error(f"HS Rule filtering failed: {e}")
-    #    hs_rules = []
+    # HS Rules from all sheets
+    #sheets = pd.read_excel(f"{DATA_DIR}/hs_codes.xlsx", sheet_name=None)
+    #df_rules = pd.concat(sheets.values())
+    #df_rules["HsCode"] = df_rules["HsCode"].astype(str)
+    #df_rules["Chapter"] = df_rules["HsCode"].str[:2].str.zfill(2)
+    #df_rules["Header"] = df_rules["HsCode"].str[:4]
+    #hs_rules = df_rules[df_rules["HsCode"].str.startswith(target)]
+    #if hs_rules.empty:
+    #    hs_rules = df_rules[df_rules["HsCode"].str.startswith(target[:4])]
+    #if hs_rules.empty:
+    #    hs_rules = df_rules[df_rules["Chapter"] == chapter_key]
+    #hs_rules = hs_rules.dropna(axis=1, how="all").to_dict("records")
+
+    # Collect all valid URLs from specific columns
+    url_cols = ["Website Link", "CFR Link", "Links to Example Documents", "Link to Disclaimer Form Template"]
+    urls = set()
+    for rec in pga_hts:
+        for col in url_cols:
+            raw = rec.get(col)
+            if raw and pd.notna(raw):
+                for url in str(raw).split():
+                    if is_valid_url(url):
+                        urls.add(url)
 
     # ChatGPT prompt per URL
     requirements = []
