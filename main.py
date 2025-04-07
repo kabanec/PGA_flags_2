@@ -71,8 +71,11 @@ ensure_persistent_files()
 from fastapi.responses import JSONResponse
 
 @app.get("/codes", response_class=HTMLResponse)
-def codes_view():
-    with open(os.path.join(BASE_DIR, "templates/codes.html")) as f:
+def serve_codes_page():
+    codes_path = os.path.join(BASE_DIR, "templates", "codes.html")
+    if not os.path.exists(codes_path):
+        raise HTTPException(status_code=404, detail="codes.html not found")
+    with open(codes_path) as f:
         return f.read()
 
 @app.get("/list-pga-options")
