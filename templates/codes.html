@@ -18,6 +18,8 @@
     .expand-toggle { cursor: pointer; color: #007BFF; text-align: center; }
     .expand-toggle:hover { text-decoration: underline; }
     .sub-table { width: 100%; font-size: 0.85rem; }
+    #toggleAllBtn { margin-top: 1rem; margin-bottom: 1rem; padding: 0.5rem 1rem; border: none; background: #007BFF; color: #fff; border-radius: 5px; cursor: pointer; }
+    #toggleAllBtn:hover { background: #0056b3; }
   </style>
 </head>
 <body>
@@ -37,10 +39,15 @@
         <select id="programCode"></select>
       </label>
     </div>
+
+    <button id="toggleAllBtn">Expand All</button>
     <div class="row-count" id="rowCount"></div>
     <table id="resultTable"></table>
   </div>
+
   <script>
+    let allExpanded = false;
+
     async function loadFilters() {
       const res = await fetch('/list-pga-options');
       const options = await res.json();
@@ -53,7 +60,11 @@
     }
 
     function createSubTable(obj) {
-      return `<table class='sub-table'>${Object.entries(obj).map(([k, v]) => `<tr><td><strong>${k}</strong></td><td>${v || ''}</td></tr>`).join('')}</table>`;
+      return `<table class='sub-table'>${Object.entries(obj).map(([k, v]) => {
+        const safeVal = v ? String(v) : '';
+        const val = safeVal.startsWith('http') ? `<a href="${safeVal}" target="_blank">${safeVal}</a>` : safeVal;
+        return `<tr><td><strong>${k}</strong></td><td>${val}</td></tr>`;
+      }).join('')}</table>`;
     }
 
     async function loadTable() {
@@ -95,7 +106,7 @@
             <td>${row["Agency Code"] || ''}</td>
             <td>${row["Code"] || ''}</td>
             <td>${row["Program Code"] || ''}</td>
-            <td class='expand-toggle' onclick="document.getElementById('${id}').style.display='table-row'">Expand</td>
+            <td class='expand-toggle' onclick="toggleRow('${id}')">Expand</td>
           </tr>
           <tr id='${id}' class='expandable-row'>
             <td colspan="4">${createSubTable(row)}</td>
@@ -104,7 +115,23 @@
       });
 
       document.getElementById('rowCount').textContent = `${data.length} records found`;
+      document.getElementById('toggleAllBtn').textContent = 'Expand All';
+      allExpanded = false;
     }
+
+    function toggleRow(id) {
+      const row = document.getElementById(id);
+      row.style.display = row.style.display === 'table-row' ? 'none' : 'table-row';
+    }
+
+    document.getElementById('toggleAllBtn').onclick = () => {
+      const rows = document.querySelectorAll('.expandable-row');
+      rows.forEach(row => {
+        row.style.display = allExpanded ? 'none' : 'table-row';
+      });
+      allExpanded = !allExpanded;
+      document.getElementById('toggleAllBtn').textContent = allExpanded ? 'Collapse All' : 'Expand All';
+    };
 
     loadFilters();
     loadTable();

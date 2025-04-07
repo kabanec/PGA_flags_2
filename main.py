@@ -68,33 +68,30 @@ def ensure_persistent_files():
 
 ensure_persistent_files()
 
-@app.get("/list-pga-options", summary="Get filter options for PGA Codes Viewer")
+from fastapi.responses import JSONResponse
+
+@app.get("/codes", response_class=HTMLResponse)
+def codes_view():
+    with open(os.path.join(BASE_DIR, "templates/codes.html")) as f:
+        return f.read()
+
+@app.get("/list-pga-options")
 def list_pga_options():
+    df = pd.read_excel(os.path.join(DATA_DIR, "PGA_Codes.xlsx"), dtype=str).fillna("")
     return {
-        "agencyCode": sorted(df_codes["Agency Code"].dropna().unique().tolist()),
-        "code": sorted(df_codes["Code"].dropna().unique().tolist()),
-        "programCode": sorted(df_codes["Program Code"].dropna().unique().tolist())
+        "agencyCode": sorted(df["Agency Code"].dropna().unique()),
+        "code": sorted(df["Code"].dropna().unique()),
+        "programCode": sorted(df["Program Code"].dropna().unique()),
     }
 
-@app.get("/codes-data", summary="Return filtered PGA Codes based on selected filters")
-def get_filtered_codes(
-    agency: str = Query(None, description="Filter by Agency Code"),
-    code: str = Query(None, description="Filter by Code"),
-    program: str = Query(None, description="Filter by Program Code")
-):
-    filtered = df_codes.copy()
-    if agency:
-        filtered = filtered[filtered["Agency Code"] == agency]
-    if code:
-        filtered = filtered[filtered["Code"] == code]
-    if program:
-        filtered = filtered[filtered["Program Code"] == program]
-    return JSONResponse(content=filtered.to_dict(orient="records"))
+@app.get("/codes-data")
+def codes_data(agency: str = "", code: str = "", program: str = ""):
+    df = pd.read_excel(os.path.join(DATA_DIR, "PGA_Codes.xlsx"), dtype=str).fillna("")
+    if agency: df = df[df["Agency Code"] == agency]
+    if code: df = df[df["Code"] == code]
+    if program: df = df[df["Program Code"] == program]
+    return df.to_dict("records")
 
-@app.get("/codes.html", response_class=HTMLResponse)
-def view_codes_html():
-    with open(os.path.join(BASE_DIR, "templates", "codes.html")) as f:
-        return f.read()
 
 @app.get("/list-persistent")
 def list_persistent():
