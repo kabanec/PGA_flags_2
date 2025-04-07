@@ -130,7 +130,26 @@ def lookup(req: LookupRequest, username: str = Depends(auth)):
         df_pga[col] = df_pga[col].astype(str).str.strip()
 
     pga_merged = df_hts.merge(df_pga, how="left", left_on=key_cols_hts, right_on=key_cols_pga)
-    pga_hts = pga_merged[pga_merged["HsCode"] == target].dropna(axis=1, how="all").to_dict("records")
+    pga_hts_columns = [
+        "PGA Name Code",
+        "PGA Flag Code",
+        "PGA Flag",
+        "PGA Program Code",
+        "HsCode",
+        "HTS Long Description",
+        "Effective Begin Date",
+        "Effective End Date",
+        "HTS Update Date",
+        "Change Pending Status Code",
+        "Change Pending Status"
+    ]
+
+    pga_hts = (
+        pga_merged[pga_merged["HsCode"] == target]
+        [pga_hts_columns]
+        .dropna(axis=1, how="all")
+        .to_dict("records")
+    )
 
     # PGA Columns to Extract
     pga_sections = {}
