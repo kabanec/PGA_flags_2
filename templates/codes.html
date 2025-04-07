@@ -11,9 +11,13 @@
     .filters { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
     select { padding: .5rem; border-radius: 4px; border: 1px solid #ccc; }
     table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem; }
-    th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+    th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; vertical-align: top; }
     th { background: #f8f8f8; }
     .row-count { margin-top: 1rem; font-weight: bold; }
+    .expandable-row { background: #f9f9f9; display: none; }
+    .expand-toggle { cursor: pointer; color: #007BFF; text-align: center; }
+    .expand-toggle:hover { text-decoration: underline; }
+    .sub-table { width: 100%; font-size: 0.85rem; }
   </style>
 </head>
 <body>
@@ -48,6 +52,10 @@
       }
     }
 
+    function createSubTable(obj) {
+      return `<table class='sub-table'>${Object.entries(obj).map(([k, v]) => `<tr><td><strong>${k}</strong></td><td>${v || ''}</td></tr>`).join('')}</table>`;
+    }
+
     async function loadTable() {
       const agency = document.getElementById('agencyCode').value;
       const code = document.getElementById('code').value;
@@ -66,15 +74,33 @@
       table.innerHTML = '';
 
       if (!data.length) {
-        table.innerHTML = '<tr><td colspan="100%">No matching records found.</td></tr>';
+        table.innerHTML = '<tr><td colspan="4">No matching records found.</td></tr>';
         document.getElementById('rowCount').textContent = '0 records found';
         return;
       }
 
-      const headers = Object.keys(data[0]);
-      table.innerHTML += `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
-      data.forEach(row => {
-        table.innerHTML += `<tr>${headers.map(h => `<td>${row[h] || ''}</td>`).join('')}</tr>`;
+      table.innerHTML += `
+        <tr>
+          <th>Agency Code</th>
+          <th>Code</th>
+          <th>Program Code</th>
+          <th>Action</th>
+        </tr>
+      `;
+
+      data.forEach((row, index) => {
+        const id = `expand-${index}`;
+        table.innerHTML += `
+          <tr>
+            <td>${row["Agency Code"] || ''}</td>
+            <td>${row["Code"] || ''}</td>
+            <td>${row["Program Code"] || ''}</td>
+            <td class='expand-toggle' onclick="document.getElementById('${id}').style.display='table-row'">Expand</td>
+          </tr>
+          <tr id='${id}' class='expandable-row'>
+            <td colspan="4">${createSubTable(row)}</td>
+          </tr>
+        `;
       });
 
       document.getElementById('rowCount').textContent = `${data.length} records found`;
