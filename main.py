@@ -18,7 +18,8 @@ load_dotenv()
 
 # Base paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+#DATA_DIR = os.path.join(BASE_DIR, "data")
+DATA_DIR = "/data"
 DEST_DATA_DIR = "/data"
 BARCODE_API_KEY = os.getenv("BARCODE_API_KEY")
 logger = logging.getLogger("uvicorn.error")
@@ -60,6 +61,7 @@ def ensure_persistent_files():
             print(f"Copied {f} to disk at /data")
         else:
             print(f"{f} already exists on disk, skipping")
+
 ensure_persistent_files()
 
 @app.get("/list-persistent")
