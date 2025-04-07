@@ -13,17 +13,6 @@ from fastapi.staticfiles import StaticFiles
 from urllib.parse import urlparse
 from pydantic import BaseModel
 
-
-def ensure_persistent_files():
-    files = ["PGA_Codes.xlsx", "PGA_HTS.xlsx", "HS_Chapters_lookup.xlsx", "headers.xlsx", "hs_codes.xlsx"]
-    for f in files:
-        src = os.path.join(BASE_DIR, "data", f)
-        dst = os.path.join("/data", f)
-        if not os.path.exists(dst):
-            shutil.copy2(src, dst)
-
-ensure_persistent_files()
-
 # Load environment variables
 load_dotenv()
 
@@ -58,6 +47,16 @@ class UPCRequest(BaseModel):
 def is_valid_url(url: str) -> bool:
     parsed = urlparse(url.strip())
     return parsed.scheme in ("http", "https") and bool(parsed.netloc)
+
+def ensure_persistent_files():
+    files = ["PGA_Codes.xlsx", "PGA_HTS.xlsx", "HS_Chapters_lookup.xlsx", "headers.xlsx", "hs_codes.xlsx"]
+    for f in files:
+        src = os.path.join(BASE_DIR, "data", f)
+        dst = os.path.join("/data", f)
+        if not os.path.exists(dst):
+            shutil.copy2(src, dst)
+
+ensure_persistent_files()
 
 @app.get("/list-persistent")
 def list_persistent():
