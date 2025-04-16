@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.security.api_key import APIKeyHeader
 from fastapi.responses import JSONResponse
 from fastapi import Query
 
@@ -42,6 +43,15 @@ def auth(credentials: HTTPBasicCredentials = Depends(security)):
 app = FastAPI(title="PGA Lookup", version="1.0.0", docs_url="/docs")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# API Key config
+API_KEY = os.getenv("API_KEY")
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+def verify_api_key(key: str = Depends(api_key_header)):
+    if key != API_KEY:
+        raise HTTPException(status_code=403, detail="Unauthorized API Key")
+    return key
+
 class LookupRequest(BaseModel):
     hs_code: str
     name: str | None = None
@@ -68,7 +78,16 @@ def ensure_persistent_files():
 
 ensure_persistent_files()
 
-from fastapi.responses import JSONResponse
+# New endpoint for external access
+@app.get("/api/pga-lookup", tags=["Public API"])
+def api_pga_lookup(hs_code: str = Query(..., description="Full 10-digit HS Code"),
+                   name: str = Query(default=None, description="Product name (optional)"),
+                   description: str = Query(default=None, description="Product description (optional)"),
+                   key: str = Depends(verify_api_key)):
+    # Reuse the same logic from /lookup without requiring HTTPBasic
+    req = LookupRequest(hs_code=hs_code, name=name, description=description)
+    return lookup(req, username="api_key_user")
+
 
 @app.get("/codes", response_class=HTMLResponse)
 def serve_codes_page():
